@@ -2,6 +2,88 @@
 Changelog
 =========
 
+5.1.6 (2024-07-18)
+==================
+
+* Fix duplication of "Link" and "Unlink" options for HTMLField. by @DmytroLitvinov in https://github.com/django-cms/djangocms-text-ckeditor/pull/679
+* fix: Allow double-clicks to propagate to CKEditor, e.g., to open the link dialog by @fsbraun in https://github.com/django-cms/djangocms-text-ckeditor/pull/676
+* fix: Let CKEditor decide on size of its panels by @fsbraun in https://github.com/django-cms/djangocms-text-ckeditor/pull/674
+
+
+5.1.5 (2023-11-30)
+==================
+
+* fix(settings): Extend ALLOW_TOKEN_PARSERS if custom one is provided by @DmytroLitvinov in `#654 <https://github.com/django-cms/djangocms-text-ckeditor/pull/654>`_
+* fix: Support djangocms-picture 2.0.0 and higher in create_picture_plugin by @leture in `#660 <https://github.com/django-cms/djangocms-text-ckeditor/pull/660>`_
+* Remove Flash plugin in the default settings by @MacLake in `#656 <https://github.com/django-cms/djangocms-text-ckeditor/pull/656>`_
+* fix: Allow for request-free context objects for testing purposes by @fsbraun in `#659 <https://github.com/django-cms/djangocms-text-ckeditor/pull/659>`_
+* Update test matrix to include Django 5 by @protoroto in `#662 <https://github.com/django-cms/djangocms-text-ckeditor/pull/662>`_
+
+
+5.1.4 (2023-10-03)
+==================
+
+* fix: Issue #641 which lead to disappearing content after adding child plugins and cancelling the edit by @fsbraun in `#652 <https://github.com/django-cms/djangocms-text-ckeditor/pull/652>`_
+* Feature/issue 648 unable to unlink by @jrief in `#649 <https://github.com/django-cms/djangocms-text-ckeditor/pull/649>`_
+* fix: Remove legacy code from Django pre 1.4 by @fsbraun in `#651 <https://github.com/django-cms/djangocms-text-ckeditor/pull/651>`_
+* fix: test suite for Django 2.2 by @fsbraun in `#650 <https://github.com/django-cms/djangocms-text-ckeditor/pull/650>`_
+
+5.1.3 (2022-06-21)
+==================
+
+* Upgrade Ckeditor to 4.21.0 via `#640 <https://github.com/django-cms/djangocms-text-ckeditor/pull/640>`_
+
+
+5.1.2 (2022-12-27)
+==================
+
+* Add suport for django CMS 4.1
+* Fix `#468 <https://github.com/django-cms/djangocms-text-ckeditor/issues/468>`_ via `#637 <https://github.com/django-cms/djangocms-text-ckeditor/pull/637>`_: Delay importing models.CMSPlugin in utils to allow adding an HTMLField to a custom user model.
+
+
+5.1.1 (2022-06-22)
+==================
+
+* Removed inline editing toggle button from touch devices (where it is inactive anyways) and collapsed menus
+* Add workaround for toolbar bug in django CMS < 3.10: Reload page after change in inline editor
+* Fix `578 <https://github.com/django-cms/djangocms-text-ckeditor/pull/578>`_: If parent plugins to not set body css class the default from CKEDITOR_SETTINGS is used
+
+5.1.0 (2022-03-24)
+==================
+
+* Added inline editing in `#606 <https://github.com/django-cms/djangocms-text-ckeditor/pull/606>`_
+* fix: Update skin patch to avoid @media query in `#614 <https://github.com/django-cms/djangocms-text-ckeditor/pull/614>`_
+
+5.0.1 (2022-03-24)
+==================
+
+* Generated new static bundle.
+
+5.0.0 (2022-03-24)
+==================
+
+* Drop support for Python 3.5 and 3.6
+* Drop support for django 3.0
+* Added support for Python 3.9 and 3.10
+* Added support for django 3.2
+* Added support for django-cms 3.9 and 3.10
+
+New features
+------------
+* Upgrade ckeditor to 4.17.2 in `595 <https://github.com/django-cms/djangocms-text-ckeditor/pull/595>`_
+* Dark mode support for standard editor UI (a.k.a. "skin") moono-lisa in `592 <https://github.com/django-cms/djangocms-text-ckeditor/pull/592>`_
+* Basic dark mode compatibility and fix for source edit bug in `590 <https://github.com/django-cms/djangocms-text-ckeditor/pull/590>`_
+
+Fixes and other changes
+-----------------------
+* Copying plugins inside ckeditor creates a child plugin copy in `569 <https://github.com/django-cms/djangocms-text-ckeditor/pull/569>`_
+* 504 copy paste plugins inside ckeditor refer to same instance in `572 <https://github.com/django-cms/djangocms-text-ckeditor/pull/572>`_
+* Use assertEqual instead of assertEquals for Python 3.11 compatibility in `580 <https://github.com/django-cms/djangocms-text-ckeditor/pull/580>`_
+* fix breaking tests in `585 <https://github.com/django-cms/djangocms-text-ckeditor/pull/585>`_
+* Update Node.js to version 16 LTS and Gulpfile upgrade as well in `593 <https://github.com/django-cms/djangocms-text-ckeditor/pull/593>`_
+* Replace ``force_text`` with ``force_str`` in `546 <https://github.com/django-cms/djangocms-text-ckeditor/pull/546>`_
+* Fix django 3.2 tests, pypi release actions and pre-commit in `594 <https://github.com/django-cms/djangocms-text-ckeditor/pull/594>`_
+* Remove excessive spaces (`#531 <https://github.com/django-cms/djangocms-text-ckeditor/issues/531>`_) in `597 <https://github.com/django-cms/djangocms-text-ckeditor/pull/597>`_
 
 4.0.0 (2020-09-15)
 ==================

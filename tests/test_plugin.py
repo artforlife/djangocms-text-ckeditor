@@ -2,30 +2,30 @@ import copy
 import json
 import re
 import unittest
+from urllib.parse import unquote
 
+from django.conf import settings
 from django.contrib import admin
 from django.contrib.auth import get_permission_codename
 from django.contrib.auth.models import Permission
 from django.template import RequestContext
 from django.utils.encoding import force_str
 from django.utils.html import escape
-from django.utils.http import urlencode, urlunquote
+from django.utils.http import urlencode
 
-from cms.api import add_plugin, create_page, create_title
-from cms.models import CMSPlugin, Page, Title
+from cms.api import add_plugin, create_title
+from cms.models import CMSPlugin, Page, Placeholder
 from cms.utils.urlutils import admin_reverse
 
-from tests.test_app.cms_plugins import DummyChildPlugin, DummyParentPlugin
-
 from djangocms_text_ckeditor.cms_plugins import TextPlugin
-from djangocms_text_ckeditor.compat import get_page_placeholders
 from djangocms_text_ckeditor.models import Text
 from djangocms_text_ckeditor.utils import (
-    _plugin_tags_to_html, _render_cms_plugin, plugin_tags_to_admin_html,
-    plugin_tags_to_id_list, plugin_to_tag,
+    _plugin_tags_to_html, _render_cms_plugin, plugin_tags_to_admin_html, plugin_tags_to_id_list, plugin_to_tag,
 )
+from tests.test_app.cms_plugins import DummyChildPlugin, DummyParentPlugin
 
 from .base import BaseTestCase
+from .fixtures import DJANGO_CMS4, DJANGOCMS_VERSIONING, TestFixture
 
 
 try:
@@ -41,18 +41,21 @@ except ImportError:
     HAS_DJANGOCMS_TRANSLATIONS = False
 
 
-class PluginActionsTestCase(BaseTestCase):
+HAS_DJANGOCMS_PICTURE = "djangocms_picture" in settings.INSTALLED_APPS
+
+
+class PluginActionsTestCase(TestFixture, BaseTestCase):
 
     def get_custom_admin_url(self, plugin_class, name):
         plugin_type = plugin_class.__name__.lower()
-        url_name = '%s_%s_%s' % (plugin_class.model._meta.app_label, plugin_type, name)
+        url_name = f'{plugin_class.model._meta.app_label}_{plugin_type}_{name}'
         return admin_reverse(url_name)
 
     def _add_child_plugin(self, text_plugin, plugin_type='PicturePlugin', data_suffix=None):
-        name = '{} record'.format(plugin_type)
+        name = f'{plugin_type} record'
 
         if data_suffix is not None:
-            name = '{} {}'.format(name, data_suffix)
+            name = f'{name} {data_suffix}'
 
         basic_plugins = {
             'LinkPlugin': {
@@ -73,7 +76,7 @@ class PluginActionsTestCase(BaseTestCase):
             plugin_type,
             'en',
             target=text_plugin,
-            **data
+            **data,
         )
         return plugin
 
@@ -92,7 +95,7 @@ class PluginActionsTestCase(BaseTestCase):
         return _plugin_tags_to_html(text, output_func=_do_replace)
 
     def add_plugin_to_text(self, text_plugin, plugin):
-        text_plugin.body = '%s %s' % (text_plugin.body, plugin_to_tag(plugin))
+        text_plugin.body = f'{text_plugin.body} {plugin_to_tag(plugin)}'
         text_plugin.save()
         return text_plugin
 
@@ -102,7 +105,7 @@ class PluginActionsTestCase(BaseTestCase):
 
     def _give_cms_permissions(self, user):
         for perm_type in ['add', 'change', 'delete']:
-            for model in [Page, Title]:
+            for model in [Page]:
                 self._give_permission(user, model, perm_type)
 
     def get_page_admin(self):
@@ -113,7 +116,7 @@ class PluginActionsTestCase(BaseTestCase):
         return self.get_request(post_data=data)
 
     def get_plugin_id_from_response(self, response):
-        url = urlunquote(response.url)
+        url = unquote(response.url)
         # Ideal case, this looks like:
         # /en/admin/cms/page/edit-plugin/1/
         return re.findall(r'\d+', url)[0]
@@ -123,8 +126,8 @@ class PluginActionsTestCase(BaseTestCase):
         Test that you can add a text plugin
         """
         admin = self.get_superuser()
-        simple_page = create_page('test page', 'page.html', u'en')
-        simple_placeholder = get_page_placeholders(simple_page, 'en').get(slot='content')
+        simple_page = self.create_page('test page', template='page.html', language='en')
+        simple_placeholder = self.get_placeholders(simple_page, 'en').get(slot='content')
 
         endpoint = self.get_add_plugin_uri(simple_placeholder, 'TextPlugin')
 
@@ -175,8 +178,8 @@ class PluginActionsTestCase(BaseTestCase):
         """
         Test that you can add a text plugin
         """
-        simple_page = create_page('test page', 'page.html', u'en')
-        simple_placeholder = get_page_placeholders(simple_page, 'en').get(slot='content')
+        simple_page = self.create_page('test page', template='page.html', language='en')
+        simple_placeholder = self.get_placeholders(simple_page, 'en').get(slot='content')
 
         endpoint = self.get_add_plugin_uri(simple_placeholder, 'TextPlugin')
 
@@ -228,15 +231,15 @@ class PluginActionsTestCase(BaseTestCase):
         Test that copy+pasting a child plugin between text editors
         creates proper copies of the child plugin and messes no other data up
         """
-        simple_page = create_page('test page', 'page.html', u'en')
-        simple_placeholder = get_page_placeholders(simple_page, 'en').get(slot='content')
+        simple_page = self.create_page('test page', template='page.html', language='en')
+        simple_placeholder = self.get_placeholders(simple_page, 'en').get(slot='content')
 
         def _get_text_plugin_with_children():
             text_plugin = add_plugin(
                 simple_placeholder,
                 'TextPlugin',
                 'en',
-                body='Text plugin we copy child plugins to'
+                body='Text plugin we copy child plugins to',
             )
             _add_child_plugins_to_text_plugin(text_plugin)
             return text_plugin
@@ -296,8 +299,8 @@ class PluginActionsTestCase(BaseTestCase):
         Test that you can add a text plugin
         """
         admin = self.get_superuser()
-        simple_page = create_page('test page', 'page.html', u'en')
-        simple_placeholder = get_page_placeholders(simple_page, 'en').get(slot='content')
+        simple_page = self.create_page('test page', template='page.html', language='en')
+        simple_placeholder = self.get_placeholders(simple_page, 'en').get(slot='content')
 
         text_plugin = add_plugin(
             simple_placeholder,
@@ -387,8 +390,8 @@ class PluginActionsTestCase(BaseTestCase):
     def test_action_token_per_session(self):
         # Assert that a cancel token for the same plugin
         # is different per user session.
-        simple_page = create_page('test page', 'page.html', u'en')
-        simple_placeholder = get_page_placeholders(simple_page, 'en').get(slot='content')
+        simple_page = self.create_page('test page', template='page.html', language='en')
+        simple_placeholder = self.get_placeholders(simple_page, 'en').get(slot='content')
 
         text_plugin = add_plugin(
             simple_placeholder,
@@ -410,8 +413,8 @@ class PluginActionsTestCase(BaseTestCase):
         self.assertNotEqual(action_token_1, action_token_2)
 
     def test_add_and_cancel_plugin_permissions(self):
-        simple_page = create_page('test page', 'page.html', u'en')
-        simple_placeholder = get_page_placeholders(simple_page, 'en').get(slot='content')
+        simple_page = self.create_page('test page', template='page.html', language='en')
+        simple_placeholder = self.get_placeholders(simple_page, 'en').get(slot='content')
 
         endpoint = self.get_add_plugin_uri(simple_placeholder, 'TextPlugin')
 
@@ -452,8 +455,8 @@ class PluginActionsTestCase(BaseTestCase):
         the child plugins are rendered as their contents passed
         as initial data to the text field.
         """
-        simple_page = create_page('test page', 'page.html', u'en')
-        simple_placeholder = get_page_placeholders(simple_page, 'en').get(slot='content')
+        simple_page = self.create_page('test page', template='page.html', language='en')
+        simple_placeholder = self.get_placeholders(simple_page, 'en').get(slot='content')
 
         text_plugin = add_plugin(
             simple_placeholder,
@@ -493,13 +496,60 @@ class PluginActionsTestCase(BaseTestCase):
                 html=False,
             )
 
+    def test_only_inline_editing_has_rendered_plugin_content(self):
+        """
+        Tests of child plugins of a TextPlugin are rendered correctly in edit mode
+        """
+        simple_page = self.create_page('test page', template='page.html', language='en')
+        simple_placeholder = self.get_placeholders(simple_page, 'en').get(slot='content')
+        # import pdb; pdb.set_trace()
+        text_plugin = add_plugin(
+            simple_placeholder,
+            'TextPlugin',
+            'en',
+            body="<p>I'm the first</p>",
+        )
+
+        self.add_plugin_to_text(text_plugin, self._add_child_plugin(text_plugin))
+        if DJANGO_CMS4:
+            try:
+                from cms.models.contentmodels import PageContent
+            except ModuleNotFoundError:
+                from cms.models.titlemodels import PageContent
+            from cms.toolbar.utils import get_object_edit_url
+
+            if DJANGOCMS_VERSIONING:
+                from djangocms_versioning.constants import DRAFT
+
+                edit_endpoint = get_object_edit_url(
+                    PageContent._original_manager.filter(
+                        page=simple_page, language='en', version__state=DRAFT
+                    ).first()
+                )
+            else:
+                try:
+                    edit_endpoint = get_object_edit_url(simple_page.get_content_obj(language='en'))
+                except AttributeError:
+                    edit_endpoint = get_object_edit_url(simple_page.get_title_obj(language='en'))
+        else:
+            edit_endpoint = simple_page.get_absolute_url()
+        with self.login_user_context(self.get_superuser()):
+            response = self.client.get(edit_endpoint + "?edit&inline_editing=1")
+            self.assertEqual(response.status_code, 200)
+            self.assertContains(response, "<cms-plugin")
+
+        with self.login_user_context(self.get_superuser()):
+            response = self.client.get(edit_endpoint + "?edit&inline_editing=0")
+            self.assertEqual(response.status_code, 200)
+            self.assertNotContains(response, "<cms-plugin")
+
     def test_user_cant_edit_child_plugins_directly(self):
         """
         No user regardless of permissions can modify the contents
         of a child plugin directly in the text plugin text.
         """
-        simple_page = create_page('test page', 'page.html', u'en')
-        simple_placeholder = get_page_placeholders(simple_page, 'en').get(slot='content')
+        simple_page = self.create_page('test page', template='page.html', language='en')
+        simple_placeholder = self.get_placeholders(simple_page, 'en').get(slot='content')
 
         text_plugin = add_plugin(
             simple_placeholder,
@@ -534,8 +584,8 @@ class PluginActionsTestCase(BaseTestCase):
             self.assertXMLEqual(text_plugin.body, expected_text)
 
     def test_render_child_plugin_endpoint(self):
-        simple_page = create_page('test page', 'page.html', u'en')
-        simple_placeholder = get_page_placeholders(simple_page, 'en').get(slot='content')
+        simple_page = self.create_page('test page', template='page.html', language='en')
+        simple_placeholder = self.get_placeholders(simple_page, 'en').get(slot='content')
         text_plugin = add_plugin(
             simple_placeholder,
             'TextPlugin',
@@ -543,14 +593,14 @@ class PluginActionsTestCase(BaseTestCase):
             body="I'm the first",
         )
         text_plugin_class = text_plugin.get_plugin_class_instance()
-        child_plugin = self._add_child_plugin(text_plugin)
+        child_plugin = self._add_child_plugin(text_plugin, 'LinkPlugin')
         text_plugin = self.add_plugin_to_text(text_plugin, child_plugin)
 
         with self.login_user_context(self.get_superuser()):
             request = self.get_request()
             action_token = text_plugin_class.get_action_token(request, text_plugin)
             endpoint = self.get_custom_admin_url(TextPlugin, 'render_plugin')
-            endpoint += '?token={}&plugin={}'.format(action_token, child_plugin.pk)
+            endpoint += f'?token={action_token}&plugin={child_plugin.pk}'
             response = self.client.get(endpoint)
 
             self.assertEqual(response.status_code, 200)
@@ -563,7 +613,7 @@ class PluginActionsTestCase(BaseTestCase):
                 content=rendered_content,
                 admin=True,
             )
-
+            self.maxDiff = None
             self.assertEqual(force_str(response.content), rendered_child_plugin)
 
         child_plugin = self._add_child_plugin(text_plugin, plugin_type='PreviewDisabledPlugin')
@@ -573,7 +623,7 @@ class PluginActionsTestCase(BaseTestCase):
             request = self.get_request()
             action_token = text_plugin_class.get_action_token(request, text_plugin)
             endpoint = self.get_custom_admin_url(TextPlugin, 'render_plugin')
-            endpoint += '?token={}&plugin={}'.format(action_token, child_plugin.pk)
+            endpoint += f'?token={action_token}&plugin={child_plugin.pk}'
             response = self.client.get(endpoint)
 
             self.assertEqual(response.status_code, 200)
@@ -589,8 +639,8 @@ class PluginActionsTestCase(BaseTestCase):
             self.assertEqual(force_str(response.content), rendered_child_plugin)
 
     def test_render_child_plugin_endpoint_calls_context_processors(self):
-        simple_page = create_page('test page', 'page.html', u'en')
-        simple_placeholder = get_page_placeholders(simple_page, 'en').get(slot='content')
+        simple_page = self.create_page('test page', template='page.html', language='en')
+        simple_placeholder = self.get_placeholders(simple_page, 'en').get(slot='content')
         text_plugin = add_plugin(
             simple_placeholder,
             'TextPlugin',
@@ -608,7 +658,7 @@ class PluginActionsTestCase(BaseTestCase):
             request = self.get_request()
             action_token = text_plugin_class.get_action_token(request, text_plugin)
             endpoint = self.get_custom_admin_url(TextPlugin, 'render_plugin')
-            endpoint += '?token={}&plugin={}'.format(action_token, child_plugin.pk)
+            endpoint += f'?token={action_token}&plugin={child_plugin.pk}'
             response = self.client.get(endpoint)
 
             self.assertEqual(response.status_code, 200)
@@ -629,8 +679,8 @@ class PluginActionsTestCase(BaseTestCase):
         Users can't render a child plugin without change permissions
         on the placeholder attached object and the text plugin.
         """
-        simple_page = create_page('test page', 'page.html', u'en')
-        simple_placeholder = get_page_placeholders(simple_page, 'en').get(slot='content')
+        simple_page = self.create_page('test page', template='page.html', language='en')
+        simple_placeholder = self.get_placeholders(simple_page, 'en').get(slot='content')
         text_plugin = add_plugin(
             simple_placeholder,
             'TextPlugin',
@@ -645,7 +695,7 @@ class PluginActionsTestCase(BaseTestCase):
             request = self.get_request()
             action_token = text_plugin_class.get_action_token(request, text_plugin)
             endpoint = self.get_custom_admin_url(TextPlugin, 'render_plugin')
-            endpoint += '?token={}&plugin={}'.format(action_token, child_plugin.pk)
+            endpoint += f'?token={action_token}&plugin={child_plugin.pk}'
             response = self.client.get(endpoint)
 
             self.assertContains(response, '<h1>403 Forbidden</h1>', status_code=403, html=True)
@@ -656,8 +706,8 @@ class PluginActionsTestCase(BaseTestCase):
         was created in the current session and it's text plugin
         matches the child plugin parent.
         """
-        simple_page = create_page('test page', 'page.html', u'en')
-        simple_placeholder = get_page_placeholders(simple_page, 'en').get(slot='content')
+        simple_page = self.create_page('test page', template='page.html', language='en')
+        simple_placeholder = self.get_placeholders(simple_page, 'en').get(slot='content')
         text_plugin = add_plugin(
             simple_placeholder,
             'TextPlugin',
@@ -678,7 +728,7 @@ class PluginActionsTestCase(BaseTestCase):
         with self.login_user_context(self.get_superuser()):
             action_token = text_plugin_class.get_action_token(request, text_plugin)
             endpoint = self.get_custom_admin_url(TextPlugin, 'render_plugin')
-            endpoint += '?token={}&plugin={}'.format(action_token, child_plugin.pk)
+            endpoint += f'?token={action_token}&plugin={child_plugin.pk}'
             response = self.client.get(endpoint)
 
             self.assertEqual(response.status_code, 400)
@@ -698,15 +748,15 @@ class PluginActionsTestCase(BaseTestCase):
             request = self.get_request()
             action_token = text_plugin_class.get_action_token(request, text_plugin_2)
             endpoint = self.get_custom_admin_url(TextPlugin, 'render_plugin')
-            endpoint += '?token={}&plugin={}'.format(action_token, child_plugin.pk)
+            endpoint += f'?token={action_token}&plugin={child_plugin.pk}'
             response = self.client.get(endpoint)
 
-            self.assertEqual(response.status_code, 400)
-            self.assertEqual(force_str(response.content), 'Unable to process your request.')
+            self.assertEqual(response.status_code, 204)
+            self.assertEqual(force_str(response.content), '')
 
     def test_custom_ckeditor_body_css_classes(self):
-        simple_page = create_page('test page', 'page.html', u'en')
-        simple_placeholder = get_page_placeholders(simple_page, 'en').get(slot='content')
+        simple_page = self.create_page('test page', template='page.html', language='en')
+        simple_placeholder = self.get_placeholders(simple_page, 'en').get(slot='content')
 
         parent_plugin = add_plugin(
             simple_placeholder,
@@ -724,7 +774,7 @@ class PluginActionsTestCase(BaseTestCase):
             simple_placeholder,
             'TextPlugin',
             'en',
-            body="Content",
+            body='Content',
             target=child_plugin,
         )
 
@@ -735,15 +785,15 @@ class PluginActionsTestCase(BaseTestCase):
             self.assertContains(response, DummyChildPlugin.child_ckeditor_body_css_class)
 
     def test_render_plugin(self):
-        simple_page = create_page('test page', 'page.html', u'en')
-        simple_placeholder = get_page_placeholders(simple_page, 'en').get(slot='content')
+        simple_page = self.create_page('test page', template='page.html', language='en')
+        simple_placeholder = self.get_placeholders(simple_page, 'en').get(slot='content')
         text_plugin = self._add_text_plugin(simple_placeholder)
 
         for i in range(0, 10):
             plugin = self._add_child_plugin(
                 text_plugin,
                 plugin_type='LinkPlugin',
-                data_suffix=i
+                data_suffix=i,
             )
 
             text_plugin = self.add_plugin_to_text(text_plugin, plugin)
@@ -758,15 +808,15 @@ class PluginActionsTestCase(BaseTestCase):
             self.assertTrue('LinkPlugin record %d' % i in rendered)
 
     def test_render_extended_plugin(self):
-        simple_page = create_page('test page', 'page.html', u'en')
-        simple_placeholder = get_page_placeholders(simple_page, 'en').get(slot='content')
+        simple_page = self.create_page('test page', template='page.html', language='en')
+        simple_placeholder = self.get_placeholders(simple_page, 'en').get(slot='content')
         text_plugin = self._add_text_plugin(simple_placeholder, 'ExtendedTextPlugin')
 
         for i in range(0, 10):
             plugin = self._add_child_plugin(
                 text_plugin,
                 plugin_type='LinkPlugin',
-                data_suffix=i
+                data_suffix=i,
             )
 
             text_plugin = self.add_plugin_to_text(text_plugin, plugin)
@@ -784,8 +834,8 @@ class PluginActionsTestCase(BaseTestCase):
         """
         Test that copying of textplugins replaces references to copied plugins
         """
-        simple_page = create_page('test page', 'page.html', u'en')
-        simple_placeholder = get_page_placeholders(simple_page, 'en').get(slot='content')
+        simple_page = self.create_page('test page', template='page.html', language='en')
+        simple_placeholder = self.get_placeholders(simple_page, 'en').get(slot='content')
 
         text_plugin = self._add_text_plugin(simple_placeholder)
 
@@ -808,7 +858,7 @@ class PluginActionsTestCase(BaseTestCase):
             'fr',
             'test-page-fr',
             simple_page,
-            slug='test-page-fr'
+            slug='test-page-fr',
         )
 
         self.assertEqual(CMSPlugin.objects.filter(language='en').count(), 3)
@@ -821,7 +871,7 @@ class PluginActionsTestCase(BaseTestCase):
             'source_language': 'en',
         }
 
-        endpoint = self.get_admin_url(Page, 'copy_plugins')
+        endpoint = self.get_admin_url(Placeholder if DJANGO_CMS4 else Page, 'copy_plugins')
         endpoint += '?' + urlencode({'cms_path': '/en/'})
 
         with self.login_user_context(self.user):
@@ -830,15 +880,15 @@ class PluginActionsTestCase(BaseTestCase):
             self.assertEqual(CMSPlugin.objects.filter(language='en').count(), 3)
             self.assertEqual(CMSPlugin.objects.filter(language=translation.language).count(), 3)
 
-            plugins = list(CMSPlugin.objects.all())
+            plugins = list(CMSPlugin.objects.order_by("id"))  # Look at the order of creation
             new_plugin = plugins[3].get_plugin_instance()[0]
             idlist = sorted(plugin_tags_to_id_list(new_plugin.body))
             expected = sorted([plugins[4].pk, plugins[5].pk])
             self.assertEqual(idlist, expected)
 
     def test_copy_plugin_callback(self):
-        simple_page = create_page('test page', 'page.html', u'en')
-        simple_placeholder = get_page_placeholders(simple_page, 'en').get(slot='content')
+        simple_page = self.create_page('test page', template='page.html', language='en')
+        simple_placeholder = self.get_placeholders(simple_page, 'en').get(slot='content')
 
         text_plugin_1 = self._add_text_plugin(simple_placeholder)
 
@@ -890,8 +940,8 @@ class PluginActionsTestCase(BaseTestCase):
             self.assertEqual(plugin_tags_to_id_list(markup), expected)
 
     def test_text_plugin_xss(self):
-        page = create_page('test page', 'page.html', u'en')
-        placeholder = get_page_placeholders(page, 'en').get(slot='content')
+        page = self.create_page('test page', template='page.html', language='en')
+        placeholder = self.get_placeholders(page, 'en').get(slot='content')
         plugin = add_plugin(placeholder, 'TextPlugin', 'en', body='body')
         endpoint = self.get_change_plugin_uri(plugin)
 
@@ -899,7 +949,7 @@ class PluginActionsTestCase(BaseTestCase):
             data = {
                 'body': (
                     '<div onload="do_evil_stuff();">divcontent</div><a href="javascript:do_evil_stuff();">acontent</a>'
-                )
+                ),
             }
             response = self.client.post(endpoint, data)
             self.assertEqual(response.status_code, 200)
@@ -908,13 +958,13 @@ class PluginActionsTestCase(BaseTestCase):
 
 @unittest.skipUnless(
     HAS_DJANGOCMS_TRANSLATIONS and HAS_DJANGOCMS_TRANSFER,
-    'Optional dependencies for tests are not installed.'
+    'Optional dependencies for tests are not installed.',
 )
 class DjangoCMSTranslationsIntegrationTestCase(BaseTestCase):
     def setUp(self):
         super().setUp()
-        self.page = create_page('test page', 'page.html', 'en', published=True)
-        self.placeholder = get_page_placeholders(self.page, 'en').get(slot='content')
+        self.page = self.create_page('test page', template='page.html', language='en')
+        self.placeholder = self.get_placeholders(self.page, 'en').get(slot='content')
 
     def _export_page(self):
         return json.loads(export_page(self.page, 'en'))
@@ -1033,3 +1083,32 @@ class DjangoCMSTranslationsIntegrationTestCase(BaseTestCase):
 
         result = TextPlugin.set_translation_import_content(result, plugin)
         self.assertDictEqual(result, {child1.pk: ''})
+
+
+@unittest.skipUnless(
+    HAS_DJANGOCMS_PICTURE,
+    'Optional dependency djangocms-picture for tests is not installed.',
+)
+class DjangoCMSPictureIntegrationTestCase(TestFixture, BaseTestCase):
+    def setUp(self):
+        super().setUp()
+        self.page = self.create_page('test page', template='page.html', language='en')
+        self.placeholder = self.get_placeholders(self.page, 'en').get(slot='content')
+
+    def test_extract_images(self):
+        text_plugin = add_plugin(
+            self.placeholder,
+            'TextPlugin',
+            'en',
+            body='<img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z/C/HgAGgwJ/lK3Q6wAAAABJRU5ErkJggg==">',
+        )
+
+        from djangocms_picture.models import Picture
+        picture_plugin = Picture.objects.order_by('-id')[0]
+        self.assertEqual(picture_plugin.parent.id, text_plugin.id)
+        self.assertHTMLEqual(
+            text_plugin.body,
+            '<cms-plugin alt="Image - unnamed file " title="Image - unnamed file" id="{}"></cms-plugin>'.format(
+                picture_plugin.id,
+            ),
+        )
